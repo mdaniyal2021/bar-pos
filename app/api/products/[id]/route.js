@@ -36,7 +36,6 @@ export async function PUT(request, { params }) {
         const categoryId = formData.get('categoryId');
         const isActive = formData.get('isActive') === 'true';
         const options = JSON.parse(formData.get('options') || '[]');
-        const imageFile = formData.get('image');
         const existingImage = formData.get('existingImage');
 
         // Validation
@@ -56,29 +55,13 @@ export async function PUT(request, { params }) {
             return Response.json({ error: 'Product name already exists' }, { status: 400 });
         }
 
-        // Handle image
-        let imagePath = existingImage || null;
-        if (imageFile && imageFile.size > 0) {
-            const { writeFile, mkdir } = await import('fs/promises');
-            const { join } = await import('path');
-
-            const uploadDir = join(process.cwd(), 'public', 'uploads', 'products');
-            await mkdir(uploadDir, { recursive: true });
-
-            const bytes = await imageFile.arrayBuffer();
-            const buffer = Buffer.from(bytes);
-            const filename = `${Date.now()}-${imageFile.name.replace(/\s/g, '-')}`;
-            await writeFile(join(uploadDir, filename), buffer);
-            imagePath = `/uploads/products/${filename}`;
-        }
-
         await db.collection('products').updateOne(
             { _id: new ObjectId(id) },
             {
                 $set: {
                     categoryId: new ObjectId(categoryId),
                     name: name.trim(),
-                    image: imagePath,
+                    image: existingImage || null, // Keep existing, no new upload
                     options: options.map((opt) => ({
                         _id: opt._id ? new ObjectId(opt._id) : new ObjectId(),
                         name: opt.name,
