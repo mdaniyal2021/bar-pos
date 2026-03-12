@@ -1,9 +1,7 @@
 import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import { ObjectId } from 'mongodb';
-import { writeFile, mkdir, unlink } from 'fs/promises';
-import { join } from 'path';
-import { existsSync } from 'fs';
+import cloudinary from '@/lib/cloudinary';
 
 // GET — Single product
 export async function GET(request, { params }) {
@@ -21,7 +19,7 @@ export async function GET(request, { params }) {
     }
 }
 
-// PUT — Update product with image upload
+// PUT — Update product with Cloudinary image upload
 export async function PUT(request, { params }) {
     try {
         await connectDB();
@@ -46,30 +44,39 @@ export async function PUT(request, { params }) {
         });
         if (duplicate) return Response.json({ error: 'Product name already exists' }, { status: 400 });
 
-        // Handle new image upload
+        // Upload new image to Cloudinary
         let imagePath = existingImage || null;
         if (imageFile && imageFile.size > 0) {
             try {
-                const uploadDir = join(process.cwd(), 'public', 'uploads', 'products');
-                if (!existsSync(uploadDir)) await mkdir(uploadDir, { recursive: true });
-
                 const bytes = await imageFile.arrayBuffer();
                 const buffer = Buffer.from(bytes);
-                const ext = imageFile.name.split('.').pop().toLowerCase();
-                const filename = `${Date.now()}-${name.trim().replace(/\s+/g, '-').toLowerCase()}.${ext}`;
 
-                await writeFile(join(uploadDir, filename), buffer);
-                imagePath = `/uploads/products/${filename}`;
+                const result = await new Promise((resolve, reject) => {
+                    cloudinary.uploader.upload_stream(
+                        {
+                            folder: 'bar-pos/products',
+                            public_id: `${Date.now()}-${name.trim().replace(/\s+/g, '-').toLowerCase()}`,
+                            transformation: [{ width: 400, height: 400, crop: 'fill', quality: 'auto' }],
+                        },
+                        (error, result) => {
+                            if (error) reject(error);
+                            else resolve(result);
+                        }
+                    ).end(buffer);
+                });
 
-                // Delete old image file if exists
-                if (existingImage && existingImage.startsWith('/uploads/')) {
+                imagePath = result.secure_url;
+
+                // Delete old image from Cloudinary
+                if (existingImage && existingImage.includes('cloudinary.com')) {
                     try {
-                        const oldPath = join(process.cwd(), 'public', existingImage);
-                        if (existsSync(oldPath)) await unlink(oldPath);
+                        const publicId = existingImage.split('/').slice(-1)[0].split('.')[0];
+                        await cloudinary.uploader.destroy(`bar-pos/products/${publicId}`);
                     } catch {}
                 }
+
             } catch (err) {
-                console.error('Image upload failed:', err);
+                console.error('Cloudinary upload failed:', err);
             }
         }
 
@@ -99,19 +106,20 @@ export async function PUT(request, { params }) {
     }
 }
 
-// DELETE — Delete product
+// DELETE — Delete product + Cloudinary image
 export async function DELETE(request, { params }) {
     try {
         await connectDB();
         const db = mongoose.connection.db;
         const { id } = await params;
 
-        // Get product to delete its image
         const product = await db.collection('products').findOne({ _id: new ObjectId(id) });
-        if (product?.image && product.image.startsWith('/uploads/')) {
+
+        // Delete image from Cloudinary
+        if (product?.image && product.image.includes('cloudinary.com')) {
             try {
-                const imgPath = join(process.cwd(), 'public', product.image);
-                if (existsSync(imgPath)) await unlink(imgPath);
+                const publicId = product.image.split('/').slice(-1)[0].split('.')[0];
+                await cloudinary.uploader.destroy(`bar-pos/products/${publicId}`);
             } catch {}
         }
 
