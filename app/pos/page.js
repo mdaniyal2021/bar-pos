@@ -210,11 +210,23 @@ export default function POSPage() {
                 <div style={{ background: '#0d0d0d', borderBottom: '1px solid #222', padding: '0 20px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
 
                     {/* Logo */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div style={{ background: '#ff4d00', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px' }}>
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z"/></svg>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <img
+                            src="/images/logo2.png"
+                            alt="Bar POS"
+                            style={{ maxHeight: '40px', maxWidth: '140px', objectFit: 'contain' }}
+                            onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                            }}
+                        />
+                        {/* Fallback text */}
+                        <div style={{ display: 'none', alignItems: 'center', gap: '10px' }}>
+                            <div style={{ background: '#ff4d00', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px' }}>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z"/></svg>
+                            </div>
+                            <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: '800', fontSize: '20px', letterSpacing: '2px', color: 'white', textTransform: 'uppercase' }}>Bar <span style={{ color: '#ff4d00' }}>POS</span></span>
                         </div>
-                        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontWeight: '800', fontSize: '20px', letterSpacing: '2px', color: 'white', textTransform: 'uppercase' }}>Bar <span style={{ color: '#ff4d00' }}>POS</span></span>
                     </div>
 
                     {/* Right side controls */}

@@ -60,13 +60,36 @@ export default function AdminLayout({ children }) {
             }}>
                 {/* Logo */}
                 <div style={{
-                    padding: '24px 20px',
+                    padding: '16px 20px',
                     background: '#1a252f',
-                    fontSize: '18px',
-                    fontWeight: 'bold',
                     borderBottom: '1px solid #3d5166',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: '80px',
                 }}>
-                    🍺 <span style={{ color: '#f39c12' }}>BAR</span> POS
+                    <img
+                        src="/images/logo2.png"
+                        alt="Bar POS Logo"
+                        style={{
+                            maxWidth: '160px',
+                            maxHeight: '60px',
+                            objectFit: 'contain',
+                        }}
+                        onError={(e) => {
+                            // Fallback to text if logo not found
+                            e.target.style.display = 'none';
+                            e.target.nextSibling.style.display = 'block';
+                        }}
+                    />
+                    {/* Fallback text — hidden by default */}
+                    <div style={{
+                        display: 'none',
+                        fontSize: '18px',
+                        fontWeight: 'bold',
+                    }}>
+                        <span style={{ color: '#f39c12' }}>BAR</span> POS
+                    </div>
                 </div>
 
                 {/* User Info */}
