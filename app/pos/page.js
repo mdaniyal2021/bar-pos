@@ -25,6 +25,11 @@ export default function POSPage() {
     const [pendingCount, setPendingCount] = useState(0);
     const [syncing, setSyncing] = useState(false);
 
+    // Payment states
+    const [paymentMethod, setPaymentMethod] = useState('cash');
+    const [amountReceived, setAmountReceived] = useState('');
+    const [paymentError, setPaymentError] = useState('');
+
     // Inject font
     useEffect(() => {
         const link = document.createElement('link');
@@ -138,28 +143,72 @@ export default function POSPage() {
     const cartTotal = cart.reduce((s, i) => s + i.subtotal, 0);
     const cartCount = cart.reduce((s, i) => s + i.quantity, 0);
 
+    // Payment calculations
+    const received = parseFloat(amountReceived) || 0;
+    const changeAmount = paymentMethod === 'cash' ? received - cartTotal : 0;
+
+    const clearCart = () => {
+        setCart([]);
+        setAmountReceived('');
+        setPaymentError('');
+        setPaymentMethod('cash');
+    };
+
     const handleCharge = async () => {
         if (!cart.length) return;
+        setPaymentError('');
+
+        // Payment validation
+        if (paymentMethod === 'cash') {
+            if (!amountReceived || received <= 0) { setPaymentError('Please enter amount received'); return; }
+            if (received < cartTotal) { setPaymentError(`Amount short by $${(cartTotal - received).toFixed(2)}`); return; }
+        }
+
         setCharging(true);
+
         const orderData = {
             cashierId: session?.user?.id,
             cashierName: session?.user?.name,
+            paymentMethod,
+            amountReceived: paymentMethod === 'cash' ? received : cartTotal,
+            changeAmount: paymentMethod === 'cash' ? changeAmount : 0,
             items: cart.map(i => ({ productId: i.productId, productOptionId: i.productOptionId, productName: i.productName, optionName: i.optionName, unitPrice: i.unitPrice, quantity: i.quantity, subtotal: i.subtotal })),
         };
+
         const saveOffline = async () => {
             await saveOrderOffline(orderData);
             const count = await getPendingCount();
             setPendingCount(count);
-            setCompletedOrder({ orderNumber: `OFF-${count}`, totalAmount: cartTotal, cashierName: session?.user?.name, items: cart.map(i => ({ productName: i.productName, optionName: i.optionName, quantity: i.quantity, subtotal: i.subtotal })), createdAt: new Date().toISOString(), isOffline: true });
-            setCart([]); setShowSuccessModal(true);
+            setCompletedOrder({
+                orderNumber: `OFF-${count}`,
+                totalAmount: cartTotal,
+                cashierName: session?.user?.name,
+                paymentMethod,
+                amountReceived: orderData.amountReceived,
+                changeAmount: orderData.changeAmount,
+                items: cart.map(i => ({ productName: i.productName, optionName: i.optionName, quantity: i.quantity, subtotal: i.subtotal })),
+                createdAt: new Date().toISOString(),
+                isOffline: true,
+            });
+            clearCart();
+            setShowSuccessModal(true);
         };
-        if (!navigator.onLine) { try { await saveOffline(); } catch (e) { alert('Save failed: ' + e.message); } setCharging(false); return; }
+
+        if (!navigator.onLine) {
+            try { await saveOffline(); } catch (e) { alert('Save failed: ' + e.message); }
+            setCharging(false); return;
+        }
+
         try {
             const res = await fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
             const data = await res.json();
-            if (res.ok) { setCompletedOrder(data.order); setCart([]); setShowSuccessModal(true); }
-            else alert('Error: ' + data.error);
-        } catch { try { await saveOffline(); } catch (e) { alert('Could not save order'); } }
+            if (res.ok) {
+                setCompletedOrder({ ...data.order, paymentMethod, amountReceived: orderData.amountReceived, changeAmount: orderData.changeAmount });
+                clearCart();
+                setShowSuccessModal(true);
+            } else alert('Error: ' + data.error);
+        } catch { try { await saveOffline(); } catch { alert('Could not save order'); } }
+
         setCharging(false);
     };
 
@@ -179,6 +228,12 @@ export default function POSPage() {
         ${order.items?.map(i => `<div style="margin-bottom:8px"><div class="bold">${i.productName}</div><div class="row"><span style="color:#555">${i.optionName} x${i.quantity}</span><span>$${parseFloat(i.subtotal).toFixed(2)}</span></div></div>`).join('')}
         <div class="divider"></div>
         <div class="row" style="margin-top:6px"><span class="bold" style="font-size:15px">TOTAL</span><span class="bold" style="font-size:15px">$${parseFloat(order.totalAmount).toFixed(2)}</span></div>
+        <div class="divider"></div>
+        <div class="row"><span>Payment</span><span class="bold">${(order.paymentMethod || 'cash').toUpperCase()}</span></div>
+        ${(order.paymentMethod === 'cash' || !order.paymentMethod) ? `
+        <div class="row"><span>Received</span><span>$${parseFloat(order.amountReceived || order.totalAmount).toFixed(2)}</span></div>
+        <div class="row"><span class="bold">Change</span><span class="bold">$${parseFloat(order.changeAmount || 0).toFixed(2)}</span></div>
+        ` : ''}
         <div class="divider"></div>
         <div class="center" style="margin-top:14px;font-size:11px;color:#777">Thank you for visiting</div>
         <script>window.onload=()=>{window.print()}<\/script></body></html>`);
@@ -208,19 +263,10 @@ export default function POSPage() {
 
                 {/* TOP BAR */}
                 <div style={{ background: '#0d0d0d', borderBottom: '1px solid #222', padding: '0 20px', height: '56px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-
-                    {/* Logo */}
                     <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <img
-                            src="/images/logo2.png"
-                            alt="Bar POS"
+                        <img src="/images/logo2.png" alt="Bar POS"
                             style={{ maxHeight: '40px', maxWidth: '140px', objectFit: 'contain' }}
-                            onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
-                            }}
-                        />
-                        {/* Fallback text */}
+                            onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'flex'; }} />
                         <div style={{ display: 'none', alignItems: 'center', gap: '10px' }}>
                             <div style={{ background: '#ff4d00', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '6px' }}>
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20 3H4v10c0 2.21 1.79 4 4 4h6c2.21 0 4-1.79 4-4v-3h2c1.11 0 2-.89 2-2V5c0-1.11-.89-2-2-2zm0 5h-2V5h2v3zM4 19h16v2H4z"/></svg>
@@ -229,24 +275,17 @@ export default function POSPage() {
                         </div>
                     </div>
 
-                    {/* Right side controls */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-
-                        {/* Online/Offline pill */}
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#1a1a1a', border: `1px solid ${isOnline ? '#1f4d2e' : '#4d1f1f'}`, borderRadius: '20px', padding: '5px 12px' }}>
                             <div style={{ width: '7px', height: '7px', borderRadius: '50%', background: isOnline ? '#22c55e' : '#ef4444', boxShadow: `0 0 6px ${isOnline ? '#22c55e' : '#ef4444'}` }}></div>
                             <span style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '1px', color: isOnline ? '#22c55e' : '#ef4444', textTransform: 'uppercase' }}>{isOnline ? 'Online' : 'Offline'}</span>
                         </div>
-
-                        {/* Pending sync */}
                         {pendingCount > 0 && (
                             <button onClick={syncPendingOrders} disabled={!isOnline || syncing}
                                 style={{ background: '#ff4d00', color: 'white', padding: '6px 14px', border: 'none', borderRadius: '6px', cursor: isOnline ? 'pointer' : 'not-allowed', fontSize: '11px', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', opacity: (!isOnline || syncing) ? 0.6 : 1 }}>
                                 {syncing ? 'Syncing...' : `${pendingCount} Pending`}
                             </button>
                         )}
-
-                        {/* Cashier name */}
                         <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '6px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#ff4d00', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '800', color: 'white' }}>
                                 {session?.user?.name?.charAt(0).toUpperCase()}
@@ -256,16 +295,12 @@ export default function POSPage() {
                                 <span style={{ background: '#ff4d00', color: 'white', padding: '1px 6px', borderRadius: '4px', fontSize: '9px', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase' }}>Admin</span>
                             )}
                         </div>
-
-                        {/* Admin button */}
                         {session?.user?.role === 'super_admin' && (
                             <button onClick={() => router.push('/admin/dashboard')}
                                 style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', color: '#aaa', padding: '7px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>
                                 Admin Panel
                             </button>
                         )}
-
-                        {/* Logout */}
                         <button onClick={() => signOut({ callbackUrl: '/login' })}
                             style={{ background: 'transparent', border: '1px solid #333', color: '#666', padding: '7px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; }}
@@ -285,7 +320,7 @@ export default function POSPage() {
 
                 {/* CATEGORY TABS */}
                 <div style={{ background: '#0d0d0d', borderBottom: '1px solid #1e1e1e', padding: '12px 16px', display: 'flex', gap: '8px', overflowX: 'auto', flexShrink: 0 }}>
-                    {['all', ...categories.map(c => c._id.toString())].map((id, idx) => {
+                    {['all', ...categories.map(c => c._id.toString())].map((id) => {
                         const cat = id === 'all' ? { name: 'All Items' } : categories.find(c => c._id.toString() === id);
                         const isActive = activeCategory === id;
                         return (
@@ -315,23 +350,18 @@ export default function POSPage() {
                                 style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: '10px', padding: '0', cursor: 'pointer', textAlign: 'left', overflow: 'hidden', transition: 'all 0.15s', display: 'flex', flexDirection: 'column' }}
                                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#ff4d00'; e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(255,77,0,0.15)'; }}
                                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = 'none'; }}>
-                                {/* Product Image */}
                                 <div style={{ position: 'relative', width: '100%', paddingTop: '70%', background: '#111', overflow: 'hidden' }}>
                                     <img src={product.image || '/images/default-product.png'} alt={product.name}
                                         style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
                                         onError={e => { e.target.src = '/images/default-product.png'; }} />
-                                    {/* Options badge */}
                                     {optCount > 1 && (
                                         <div style={{ position: 'absolute', top: '8px', right: '8px', background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)', color: '#aaa', padding: '2px 7px', borderRadius: '4px', fontSize: '10px', fontWeight: '700', letterSpacing: '0.5px' }}>
                                             {optCount} sizes
                                         </div>
                                     )}
                                 </div>
-                                {/* Product Info */}
                                 <div style={{ padding: '10px 12px 12px' }}>
-                                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#e0e0e0', marginBottom: '6px', lineHeight: '1.3', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                        {product.name}
-                                    </div>
+                                    <div style={{ fontSize: '13px', fontWeight: '700', color: '#e0e0e0', marginBottom: '6px', lineHeight: '1.3', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{product.name}</div>
                                     <div style={{ fontSize: '15px', fontWeight: '800', color: '#ff4d00' }}>
                                         ${minPrice.toFixed(2)}
                                         <span style={{ fontSize: '10px', fontWeight: '600', color: '#444', marginLeft: '4px' }}>from</span>
@@ -387,18 +417,73 @@ export default function POSPage() {
                     ))}
                 </div>
 
-                {/* Cart Footer */}
-                <div style={{ padding: '16px', borderTop: '1px solid #1e1e1e', flexShrink: 0 }}>
+                {/* Cart Footer — Payment Section */}
+                <div style={{ padding: '14px 16px', borderTop: '1px solid #1e1e1e', flexShrink: 0 }}>
+
                     {/* Total */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', padding: '12px 16px', background: '#141414', borderRadius: '8px', border: '1px solid #1e1e1e' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', padding: '10px 14px', background: '#141414', borderRadius: '8px', border: '1px solid #1e1e1e' }}>
                         <span style={{ fontSize: '11px', fontWeight: '700', letterSpacing: '2px', color: '#555', textTransform: 'uppercase' }}>Total</span>
-                        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '28px', fontWeight: '800', color: 'white', letterSpacing: '1px' }}>${cartTotal.toFixed(2)}</span>
+                        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '26px', fontWeight: '800', color: 'white' }}>${cartTotal.toFixed(2)}</span>
                     </div>
 
-                    {/* Clear cart */}
+                    {/* Payment Method */}
+                    <div style={{ marginBottom: '10px' }}>
+                        <div style={{ fontSize: '10px', fontWeight: '700', color: '#444', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '7px' }}>Payment Method</div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            {['cash', 'bank'].map(method => (
+                                <button key={method} onClick={() => { setPaymentMethod(method); setAmountReceived(''); setPaymentError(''); }}
+                                    style={{ flex: 1, padding: '9px', background: paymentMethod === method ? '#ff4d00' : '#1a1a1a', color: paymentMethod === method ? 'white' : '#555', border: `1px solid ${paymentMethod === method ? '#ff4d00' : '#2a2a2a'}`, borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: '800', letterSpacing: '1px', textTransform: 'uppercase', transition: 'all 0.15s' }}>
+                                    {method === 'cash' ? '💵 Cash' : '🏦 Bank'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Amount Received — Cash only */}
+                    {paymentMethod === 'cash' && (
+                        <div style={{ marginBottom: '8px' }}>
+                            <div style={{ fontSize: '10px', fontWeight: '700', color: '#444', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '7px' }}>Amount Received</div>
+                            <input
+                                type="number"
+                                value={amountReceived}
+                                onChange={e => { setAmountReceived(e.target.value); setPaymentError(''); }}
+                                placeholder={`Min $${cartTotal.toFixed(2)}`}
+                                min={cartTotal}
+                                step="0.01"
+                                style={{ width: '100%', padding: '10px 14px', background: '#1a1a1a', border: `1px solid ${paymentError ? '#ef4444' : '#2a2a2a'}`, borderRadius: '6px', color: 'white', fontSize: '16px', fontWeight: '700', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                                onFocus={e => e.target.style.borderColor = '#ff4d00'}
+                                onBlur={e => e.target.style.borderColor = paymentError ? '#ef4444' : '#2a2a2a'}
+                            />
+
+                            {/* Change — green */}
+                            {received > 0 && received >= cartTotal && cartTotal > 0 && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '7px', padding: '8px 12px', background: '#0a1a0a', border: '1px solid #1f4d2e', borderRadius: '6px' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#22c55e', letterSpacing: '1px', textTransform: 'uppercase' }}>Change</span>
+                                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '20px', fontWeight: '800', color: '#22c55e' }}>${changeAmount.toFixed(2)}</span>
+                                </div>
+                            )}
+
+                            {/* Short — red */}
+                            {received > 0 && received < cartTotal && (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '7px', padding: '8px 12px', background: '#1a0800', border: '1px solid #4d1f00', borderRadius: '6px' }}>
+                                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#ef4444', letterSpacing: '1px', textTransform: 'uppercase' }}>Short</span>
+                                    <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '20px', fontWeight: '800', color: '#ef4444' }}>${(cartTotal - received).toFixed(2)}</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Payment Error */}
+                    {paymentError && (
+                        <div style={{ background: '#1a0800', border: '1px solid #ef444433', color: '#ef4444', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}>
+                            {paymentError}
+                        </div>
+                    )}
+
+                    {/* Clear button */}
                     {cart.length > 0 && (
-                        <button onClick={() => setCart([])}
-                            style={{ width: '100%', padding: '9px', background: 'transparent', color: '#444', border: '1px solid #222', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}
+                        <button onClick={clearCart}
+                            style={{ width: '100%', padding: '8px', background: 'transparent', color: '#444', border: '1px solid #222', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '8px' }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.color = '#ef4444'; }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = '#222'; e.currentTarget.style.color = '#444'; }}>
                             Clear Order
@@ -407,12 +492,12 @@ export default function POSPage() {
 
                     {/* Charge button */}
                     <button onClick={handleCharge} disabled={!cart.length || charging}
-                        style={{ width: '100%', padding: '16px', background: !cart.length || charging ? '#1a1a1a' : isOnline ? '#ff4d00' : '#d97706', color: !cart.length || charging ? '#333' : 'white', border: 'none', borderRadius: '8px', cursor: !cart.length || charging ? 'not-allowed' : 'pointer', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '20px', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase', transition: 'all 0.15s', boxShadow: cart.length && !charging ? `0 4px 20px ${isOnline ? 'rgba(255,77,0,0.3)' : 'rgba(217,119,6,0.3)'}` : 'none' }}>
+                        style={{ width: '100%', padding: '15px', background: !cart.length || charging ? '#1a1a1a' : isOnline ? '#ff4d00' : '#d97706', color: !cart.length || charging ? '#333' : 'white', border: 'none', borderRadius: '8px', cursor: !cart.length || charging ? 'not-allowed' : 'pointer', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '20px', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase', transition: 'all 0.15s', boxShadow: cart.length && !charging ? `0 4px 20px ${isOnline ? 'rgba(255,77,0,0.3)' : 'rgba(217,119,6,0.3)'}` : 'none' }}>
                         {charging ? 'Processing...' : isOnline ? `Charge  $${cartTotal.toFixed(2)}` : `Save Offline  $${cartTotal.toFixed(2)}`}
                     </button>
 
                     {!isOnline && (
-                        <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: '600', color: '#d97706', marginTop: '8px', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                        <div style={{ textAlign: 'center', fontSize: '10px', fontWeight: '600', color: '#d97706', marginTop: '6px', letterSpacing: '1px', textTransform: 'uppercase' }}>
                             Offline mode — syncs when connected
                         </div>
                     )}
@@ -432,7 +517,6 @@ export default function POSPage() {
                                 <div style={{ fontSize: '11px', color: '#555', fontWeight: '600', letterSpacing: '1px', textTransform: 'uppercase', marginTop: '4px' }}>Select size</div>
                             </div>
                         </div>
-
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '16px' }}>
                             {selectedProduct.options?.filter(o => o.isActive).map(option => (
                                 <button key={option._id} onClick={() => addToCart(selectedProduct, option)}
@@ -444,7 +528,6 @@ export default function POSPage() {
                                 </button>
                             ))}
                         </div>
-
                         <button onClick={() => { setShowOptionModal(false); setSelectedProduct(null); }}
                             style={{ width: '100%', padding: '11px', background: 'transparent', color: '#444', border: '1px solid #222', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700', letterSpacing: '2px', textTransform: 'uppercase' }}
                             onMouseEnter={e => e.currentTarget.style.borderColor = '#444'}
@@ -458,42 +541,54 @@ export default function POSPage() {
             {/* ===== SUCCESS MODAL ===== */}
             {showSuccessModal && completedOrder && (
                 <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}>
-                    <div style={{ background: '#141414', border: `1px solid ${completedOrder.isOffline ? '#d97706' : '#ff4d00'}`, borderRadius: '16px', padding: '36px', width: '100%', maxWidth: '360px', textAlign: 'center', boxShadow: `0 40px 80px rgba(0,0,0,0.8), 0 0 40px ${completedOrder.isOffline ? 'rgba(217,119,6,0.15)' : 'rgba(255,77,0,0.15)'}` }}>
+                    <div style={{ background: '#141414', border: `1px solid ${completedOrder.isOffline ? '#d97706' : '#ff4d00'}`, borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '360px', textAlign: 'center', boxShadow: `0 40px 80px rgba(0,0,0,0.8), 0 0 40px ${completedOrder.isOffline ? 'rgba(217,119,6,0.15)' : 'rgba(255,77,0,0.15)'}` }}>
 
-                        {/* Icon */}
-                        <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: completedOrder.isOffline ? '#1a1200' : '#1a0800', border: `2px solid ${completedOrder.isOffline ? '#d97706' : '#ff4d00'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+                        <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: completedOrder.isOffline ? '#1a1200' : '#1a0800', border: `2px solid ${completedOrder.isOffline ? '#d97706' : '#ff4d00'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
                             {completedOrder.isOffline
-                                ? <svg width="28" height="28" viewBox="0 0 24 24" fill="#d97706"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
-                                : <svg width="28" height="28" viewBox="0 0 24 24" fill="#ff4d00"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                                ? <svg width="26" height="26" viewBox="0 0 24 24" fill="#d97706"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                                : <svg width="26" height="26" viewBox="0 0 24 24" fill="#ff4d00"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
                             }
                         </div>
 
-                        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '22px', fontWeight: '800', color: completedOrder.isOffline ? '#d97706' : '#ff4d00', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '4px' }}>
+                        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '20px', fontWeight: '800', color: completedOrder.isOffline ? '#d97706' : '#ff4d00', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '4px' }}>
                             {completedOrder.isOffline ? 'Saved Offline' : 'Order Placed'}
                         </div>
-
                         {completedOrder.isOffline && (
-                            <div style={{ fontSize: '11px', color: '#555', fontWeight: '600', letterSpacing: '1px', marginBottom: '16px' }}>
-                                Will sync when internet returns
-                            </div>
+                            <div style={{ fontSize: '11px', color: '#555', marginBottom: '12px' }}>Will sync when internet returns</div>
                         )}
 
-                        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '14px', fontWeight: '700', color: '#444', letterSpacing: '3px', textTransform: 'uppercase', marginBottom: '4px', marginTop: completedOrder.isOffline ? '0' : '12px' }}>
-                            {completedOrder.orderNumber}
-                        </div>
-                        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '48px', fontWeight: '800', color: 'white', letterSpacing: '1px', marginBottom: '28px' }}>
-                            ${parseFloat(completedOrder.totalAmount).toFixed(2)}
+                        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '12px', fontWeight: '700', color: '#444', letterSpacing: '3px', textTransform: 'uppercase', marginTop: '8px' }}>{completedOrder.orderNumber}</div>
+                        <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '44px', fontWeight: '800', color: 'white', marginBottom: '12px' }}>${parseFloat(completedOrder.totalAmount).toFixed(2)}</div>
+
+                        {/* Payment Summary */}
+                        <div style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: '8px', padding: '12px 16px', marginBottom: '20px', textAlign: 'left' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: completedOrder.paymentMethod === 'cash' ? '6px' : '0' }}>
+                                <span style={{ fontSize: '11px', color: '#555', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Payment</span>
+                                <span style={{ fontSize: '12px', color: '#aaa', fontWeight: '700', textTransform: 'uppercase' }}>{completedOrder.paymentMethod || 'cash'}</span>
+                            </div>
+                            {completedOrder.paymentMethod === 'cash' && (
+                                <>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                                        <span style={{ fontSize: '11px', color: '#555', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Received</span>
+                                        <span style={{ fontSize: '12px', color: '#ddd', fontWeight: '700' }}>${parseFloat(completedOrder.amountReceived).toFixed(2)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #2a2a2a', paddingTop: '6px' }}>
+                                        <span style={{ fontSize: '11px', color: '#22c55e', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '1px' }}>Change</span>
+                                        <span style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '18px', color: '#22c55e', fontWeight: '800' }}>${parseFloat(completedOrder.changeAmount).toFixed(2)}</span>
+                                    </div>
+                                </>
+                            )}
                         </div>
 
                         <div style={{ display: 'flex', gap: '10px' }}>
                             {!completedOrder.isOffline && (
                                 <button onClick={() => { handlePrint(completedOrder); setShowSuccessModal(false); }}
-                                    style={{ flex: 1, padding: '13px', background: '#1a1a1a', color: '#aaa', border: '1px solid #2a2a2a', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                                    style={{ flex: 1, padding: '12px', background: '#1a1a1a', color: '#aaa', border: '1px solid #2a2a2a', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase' }}>
                                     Print Receipt
                                 </button>
                             )}
                             <button onClick={() => setShowSuccessModal(false)}
-                                style={{ flex: 1, padding: '13px', background: '#ff4d00', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '16px', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase' }}>
+                                style={{ flex: 1, padding: '12px', background: '#ff4d00', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontFamily: "'Barlow Condensed', sans-serif", fontSize: '16px', fontWeight: '800', letterSpacing: '2px', textTransform: 'uppercase' }}>
                                 New Order
                             </button>
                         </div>
