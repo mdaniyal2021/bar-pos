@@ -20,19 +20,11 @@ const handler = NextAuth({
                     email: credentials.email.toLowerCase()
                 });
 
-                if (!user) {
-                    throw new Error('Invalid email or password');
-                }
-
-                if (!user.isActive) {
-                    throw new Error('Account is inactive. Contact admin.');
-                }
+                if (!user) throw new Error('Invalid email or password');
+                if (!user.isActive) throw new Error('Account is inactive. Contact admin.');
 
                 const isValid = await bcrypt.compare(credentials.password, user.password);
-
-                if (!isValid) {
-                    throw new Error('Invalid email or password');
-                }
+                if (!isValid) throw new Error('Invalid email or password');
 
                 return {
                     id: user._id.toString(),
@@ -58,7 +50,13 @@ const handler = NextAuth({
         },
     },
     pages: { signIn: '/login', error: '/login' },
-    session: { strategy: 'jwt' },
+    session: {
+        strategy: 'jwt',
+        maxAge: 8 * 60 * 60, // 8 hours — session expire
+    },
+    jwt: {
+        maxAge: 8 * 60 * 60, // JWT bhi 8 hours
+    },
 });
 
 export { handler as GET, handler as POST };
