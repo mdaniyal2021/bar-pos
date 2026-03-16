@@ -4,7 +4,7 @@ import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-const handler = NextAuth({
+export const authOptions = {
     providers: [
         CredentialsProvider({
             name: 'credentials',
@@ -14,18 +14,14 @@ const handler = NextAuth({
             },
             async authorize(credentials) {
                 await connectDB();
-
                 const db = mongoose.connection.db;
                 const user = await db.collection('users').findOne({
                     email: credentials.email.toLowerCase()
                 });
-
                 if (!user) throw new Error('Invalid email or password');
                 if (!user.isActive) throw new Error('Account is inactive. Contact admin.');
-
                 const isValid = await bcrypt.compare(credentials.password, user.password);
                 if (!isValid) throw new Error('Invalid email or password');
-
                 return {
                     id: user._id.toString(),
                     name: user.name,
@@ -37,10 +33,7 @@ const handler = NextAuth({
     ],
     callbacks: {
         async jwt({ token, user }) {
-            if (user) {
-                token.role = user.role;
-                token.id = user.id;
-            }
+            if (user) { token.role = user.role; token.id = user.id; }
             return token;
         },
         async session({ session, token }) {
@@ -50,13 +43,9 @@ const handler = NextAuth({
         },
     },
     pages: { signIn: '/login', error: '/login' },
-    session: {
-        strategy: 'jwt',
-        maxAge: 8 * 60 * 60, // 8 hours — session expire
-    },
-    jwt: {
-        maxAge: 8 * 60 * 60, // JWT bhi 8 hours
-    },
-});
+    session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
+    jwt: { maxAge: 8 * 60 * 60 },
+};
 
+const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

@@ -34,6 +34,10 @@ export async function PUT(request, { params }) {
         const existingImage = formData.get('existingImage');
         const imageFile = formData.get('image');
 
+        // Stock fields
+        const stockEnabled = formData.get('stockEnabled') === 'true';
+        const stockQuantity = parseInt(formData.get('stockQuantity')) || 0;
+
         if (!name || name.trim() === '') return Response.json({ error: 'Product name is required' }, { status: 400 });
         if (options.length === 0) return Response.json({ error: 'At least one option is required' }, { status: 400 });
 
@@ -94,6 +98,8 @@ export async function PUT(request, { params }) {
                         isActive: opt.isActive !== false,
                     })),
                     isActive,
+                    stockEnabled,
+                    stockQuantity: stockEnabled ? stockQuantity : 0,
                     updatedAt: new Date(),
                 }
             }

@@ -47,6 +47,10 @@ export async function POST(request) {
         const options = JSON.parse(formData.get('options') || '[]');
         const imageFile = formData.get('image');
 
+        // Stock fields
+        const stockEnabled = formData.get('stockEnabled') === 'true';
+        const stockQuantity = parseInt(formData.get('stockQuantity')) || 0;
+
         // Validation
         if (!name || name.trim() === '') return Response.json({ error: 'Product name is required' }, { status: 400 });
         if (!categoryId) return Response.json({ error: 'Category is required' }, { status: 400 });
@@ -96,6 +100,8 @@ export async function POST(request) {
                 isActive: opt.isActive !== false,
             })),
             isActive,
+            stockEnabled,
+            stockQuantity: stockEnabled ? stockQuantity : 0,
             createdAt: new Date(),
             updatedAt: new Date(),
         };
