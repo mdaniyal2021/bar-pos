@@ -1,6 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import {
+    FiBox, FiPlus, FiEdit2, FiTrash2,
+    FiPackage, FiX, FiCheck, FiAlertTriangle,
+    FiImage, FiTag, FiLayers
+} from 'react-icons/fi';
 
 export default function ProductsPage() {
     const [products, setProducts] = useState([]);
@@ -13,7 +18,6 @@ export default function ProductsPage() {
     const [imagePreview, setImagePreview] = useState(null);
     const fileRef = useRef(null);
 
-    // Stock In modal
     const [showStockModal, setShowStockModal] = useState(false);
     const [stockProduct, setStockProduct] = useState(null);
     const [stockQty, setStockQty] = useState('');
@@ -114,93 +118,167 @@ export default function ProductsPage() {
         fetchAll();
     };
 
-    const getStockBadge = (product) => {
+    const getStockInfo = (product) => {
         if (!product.stockEnabled) return null;
         const qty = product.stockQuantity || 0;
-        if (qty === 0) return { label: 'Out of Stock', bg: '#fee2e2', color: '#dc2626' };
-        if (qty <= 5) return { label: `Low: ${qty}`, bg: '#fef3c7', color: '#d97706' };
-        return { label: `${qty} in stock`, bg: '#dcfce7', color: '#16a34a' };
+        if (qty === 0) return { label: 'Out of Stock', bg: '#fef2f2', color: '#dc2626', icon: <FiAlertTriangle size={11} /> };
+        if (qty <= 5) return { label: `Low: ${qty}`, bg: '#fffbeb', color: '#d97706', icon: <FiAlertTriangle size={11} /> };
+        return { label: `${qty} in stock`, bg: '#ecfdf5', color: '#059669', icon: <FiCheck size={11} /> };
     };
 
-    const S = {
-        label: { display: 'block', fontWeight: 'bold', color: '#555', marginBottom: '6px', fontSize: '14px' },
-        input: { width: '100%', padding: '10px 14px', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
+    const inputStyle = {
+        width: '100%', padding: '9px 12px',
+        border: '1px solid #e2e8f0', borderRadius: '8px',
+        fontSize: '14px', outline: 'none',
+        boxSizing: 'border-box', color: '#0f172a',
+        background: '#f8fafc',
     };
+
+    const labelStyle = {
+        display: 'block', fontWeight: '600',
+        color: '#475569', marginBottom: '6px', fontSize: '13px',
+    };
+
+    // Stats
+    const activeCount = products.filter(p => p.isActive).length;
+    const trackedCount = products.filter(p => p.stockEnabled).length;
+    const lowStockCount = products.filter(p => p.stockEnabled && (p.stockQuantity || 0) <= 5).length;
 
     return (
-        <div style={{ padding: '28px' }}>
+        <div style={{ padding: '32px', fontFamily: "'DM Sans', 'Segoe UI', sans-serif", minHeight: '100vh', background: '#f1f5f9' }}>
+
             {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+            <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
-                    <h1 style={{ fontSize: '22px', fontWeight: 'bold', color: '#2c3e50', margin: 0 }}>Products</h1>
-                    <div style={{ fontSize: '13px', color: '#95a5a6', marginTop: '4px' }}>Home / Products</div>
+                    <p style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 4px' }}>Management</p>
+                    <h1 style={{ fontSize: '26px', fontWeight: '700', color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>Products</h1>
                 </div>
-                <button onClick={openCreate} style={{ background: '#1a6b3c', color: 'white', padding: '10px 20px', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}>
-                    + New Product
+                <button onClick={openCreate}
+                    style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: '#0f172a', color: 'white', border: 'none', borderRadius: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: '600' }}>
+                    <FiPlus size={16} /> New Product
                 </button>
             </div>
 
+            {/* Stats */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                {[
+                    { label: 'Total Products', value: products.length, icon: <FiBox />, color: '#6366f1', bg: '#eef2ff' },
+                    { label: 'Active', value: activeCount, icon: <FiCheck />, color: '#10b981', bg: '#ecfdf5' },
+                    { label: 'Low Stock', value: lowStockCount, icon: <FiAlertTriangle />, color: lowStockCount > 0 ? '#f59e0b' : '#10b981', bg: lowStockCount > 0 ? '#fffbeb' : '#ecfdf5' },
+                ].map((card, i) => (
+                    <div key={i} style={{ background: 'white', padding: '20px 24px', borderRadius: '12px', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: card.bg, color: card.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', flexShrink: 0 }}>
+                            {card.icon}
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '11px', fontWeight: '600', color: '#94a3b8', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '4px' }}>{card.label}</div>
+                            <div style={{ fontSize: '26px', fontWeight: '700', color: '#0f172a', letterSpacing: '-0.5px' }}>{card.value}</div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+
             {/* Table */}
-            <div style={{ background: 'white', borderRadius: '8px', overflow: 'hidden' }}>
+            <div style={{ background: 'white', borderRadius: '12px', border: '1px solid #e2e8f0', overflow: 'hidden' }}>
                 {loading ? (
-                    <div style={{ padding: '40px', textAlign: 'center', color: '#95a5a6' }}>Loading...</div>
+                    <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>Loading products...</div>
                 ) : (
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                         <thead>
-                            <tr style={{ background: '#2c3e50', color: 'white' }}>
-                                {['Image', 'Name', 'Category', 'Options & Prices', 'Stock', 'Status', 'Actions'].map(h => (
-                                    <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '13px' }}>{h}</th>
+                            <tr style={{ borderBottom: '1px solid #1e293b' }}>
+                                {['Image', 'Product', 'Category', 'Options & Prices', 'Stock', 'Status', 'Actions'].map(h => (
+                                    <th 
+                                        key={h} 
+                                        style={{ 
+                                            padding: '13px 16px',textAlign: 'left',fontSize: '11px',fontWeight: '700',  color: '#f1f5f9',letterSpacing: '1px',textTransform: 'uppercase',background: '#0f172a'
+                                        }}
+                                    >
+                                        {h}
+                                    </th>
                                 ))}
                             </tr>
                         </thead>
                         <tbody>
                             {products.length === 0 ? (
-                                <tr><td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: '#95a5a6' }}>No products found</td></tr>
-                            ) : products.map((product) => {
-                                const stockBadge = getStockBadge(product);
+                                <tr><td colSpan={7} style={{ padding: '60px', textAlign: 'center', color: '#94a3b8', fontSize: '14px' }}>No products found — create your first one!</td></tr>
+                            ) : products.map((product, idx) => {
+                                const stockInfo = getStockInfo(product);
                                 return (
-                                    <tr key={product._id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                                        <td style={{ padding: '10px 16px' }}>
-                                            <img src={product.image || '/images/default-product.png'} alt={product.name}
-                                                style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #eee' }}
-                                                onError={(e) => { e.target.src = '/images/default-product.png'; }} />
-                                        </td>
-                                        <td style={{ padding: '12px 16px', fontWeight: 'bold', color: '#2c3e50' }}>{product.name}</td>
+                                    <tr key={product._id} style={{ borderBottom: '1px solid #f8fafc', background: idx % 2 === 0 ? 'white' : '#fafafa' }}>
+                                        {/* Image */}
                                         <td style={{ padding: '12px 16px' }}>
-                                            <span style={{ background: '#eaf4ee', color: '#1a6b3c', padding: '3px 10px', borderRadius: '20px', fontSize: '12px' }}>
+                                            <div style={{ width: '52px', height: '52px', borderRadius: '10px', overflow: 'hidden', border: '1px solid #e2e8f0', background: '#f8fafc', flexShrink: 0 }}>
+                                                <img src={product.image || '/images/default-product.png'} alt={product.name}
+                                                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                                    onError={(e) => { e.target.src = '/images/default-product.png'; }} />
+                                            </div>
+                                        </td>
+
+                                        {/* Name */}
+                                        <td style={{ padding: '12px 16px' }}>
+                                            <div style={{ fontWeight: '700', color: '#0f172a', fontSize: '14px' }}>{product.name}</div>
+                                        </td>
+
+                                        {/* Category */}
+                                        <td style={{ padding: '12px 16px' }}>
+                                            <span style={{ background: '#eef2ff', color: '#6366f1', padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>
                                                 {product.category?.name || '—'}
                                             </span>
                                         </td>
-                                        <td style={{ padding: '12px 16px' }}>
-                                            {product.options?.map((opt, i) => (
-                                                <span key={i} style={{ display: 'inline-block', background: '#f0f0f0', color: '#333', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', margin: '2px' }}>
-                                                    {opt.name}: <strong>${parseFloat(opt.price).toFixed(2)}</strong>
-                                                </span>
-                                            ))}
+
+                                        {/* Options */}
+                                        <td style={{ padding: '12px 16px', maxWidth: '200px' }}>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                                                {product.options?.filter(o => o.isActive).map((opt, i) => (
+                                                    <span key={i} style={{ background: '#f1f5f9', color: '#475569', padding: '3px 8px', borderRadius: '5px', fontSize: '12px', fontWeight: '500', whiteSpace: 'nowrap' }}>
+                                                        {opt.name} <span style={{ fontWeight: '700', color: '#0f172a' }}>${parseFloat(opt.price).toFixed(2)}</span>
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </td>
+
+                                        {/* Stock */}
                                         <td style={{ padding: '12px 16px' }}>
                                             {!product.stockEnabled ? (
-                                                <span style={{ fontSize: '12px', color: '#aaa' }}>Not tracked</span>
+                                                <span style={{ fontSize: '12px', color: '#cbd5e1', fontStyle: 'italic' }}>Not tracked</span>
                                             ) : (
-                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                                                    <span style={{ background: stockBadge.bg, color: stockBadge.color, padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '600', display: 'inline-block' }}>
-                                                        {stockBadge.label}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-start' }}>
+                                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', background: stockInfo.bg, color: stockInfo.color, padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600' }}>
+                                                        {stockInfo.icon} {stockInfo.label}
                                                     </span>
                                                     <button onClick={() => openStockIn(product)}
-                                                        style={{ background: '#1a6b3c', color: 'white', padding: '4px 10px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: '600' }}>
-                                                        + Stock In
+                                                        style={{ display: 'flex', alignItems: 'center', gap: '4px', background: '#f1f5f9', color: '#475569', padding: '4px 10px', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: '600' }}>
+                                                        <FiPlus size={11} /> Stock In
                                                     </button>
                                                 </div>
                                             )}
                                         </td>
+
+                                        {/* Status */}
                                         <td style={{ padding: '12px 16px' }}>
-                                            <span style={{ background: product.isActive ? '#d4edda' : '#f8d7da', color: product.isActive ? '#155724' : '#721c24', padding: '3px 10px', borderRadius: '20px', fontSize: '12px' }}>
+                                            <span style={{
+                                                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                                padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600',
+                                                background: product.isActive ? '#ecfdf5' : '#fef2f2',
+                                                color: product.isActive ? '#059669' : '#dc2626',
+                                            }}>
+                                                {product.isActive ? <FiCheck size={11} /> : <FiX size={11} />}
                                                 {product.isActive ? 'Active' : 'Inactive'}
                                             </span>
                                         </td>
+
+                                        {/* Actions */}
                                         <td style={{ padding: '12px 16px' }}>
-                                            <button onClick={() => openEdit(product)} style={{ background: '#3498db', color: 'white', padding: '6px 14px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px', marginRight: '8px' }}>Edit</button>
-                                            <button onClick={() => handleDelete(product._id, product.name)} style={{ background: '#e74c3c', color: 'white', padding: '6px 14px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>Delete</button>
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                <button onClick={() => openEdit(product)}
+                                                    style={{ padding: '7px 10px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                                                    <FiEdit2 size={14} />
+                                                </button>
+                                                <button onClick={() => handleDelete(product._id, product.name)}
+                                                    style={{ padding: '7px 10px', background: '#fef2f2', color: '#dc2626', border: 'none', borderRadius: '7px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                                                    <FiTrash2 size={14} />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
@@ -212,96 +290,140 @@ export default function ProductsPage() {
 
             {/* ===== PRODUCT MODAL ===== */}
             {showModal && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, overflowY: 'auto', padding: '20px' }}>
-                    <div style={{ background: 'white', borderRadius: '12px', padding: '32px', width: '100%', maxWidth: '560px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
-                        <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: '#2c3e50', margin: '0 0 24px 0' }}>
-                            {editItem ? '✏️ Edit Product' : '➕ New Product'}
-                        </h2>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px', backdropFilter: 'blur(4px)' }}
+                    onClick={() => setShowModal(false)}>
+                    <div style={{ background: 'white', borderRadius: '16px', padding: '32px', width: '100%', maxWidth: '560px', boxShadow: '0 25px 50px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto' }}
+                        onClick={e => e.stopPropagation()}>
+
+                        {/* Modal Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                            <div>
+                                <p style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 4px' }}>
+                                    {editItem ? 'Edit Product' : 'New Product'}
+                                </p>
+                                <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#0f172a', margin: 0 }}>
+                                    {editItem ? editItem.name : 'Add a Product'}
+                                </h2>
+                            </div>
+                            <button onClick={() => setShowModal(false)}
+                                style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '8px', cursor: 'pointer', color: '#64748b', display: 'flex' }}>
+                                <FiX size={16} />
+                            </button>
+                        </div>
+
                         {error && (
-                            <div style={{ background: '#f8d7da', color: '#721c24', padding: '10px 14px', borderRadius: '6px', marginBottom: '16px', fontSize: '14px' }}>❌ {error}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fef2f2', color: '#dc2626', padding: '10px 14px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px', fontWeight: '500' }}>
+                                <FiAlertTriangle size={14} /> {error}
+                            </div>
                         )}
+
                         {/* Name */}
                         <div style={{ marginBottom: '16px' }}>
-                            <label style={S.label}>Product Name *</label>
-                            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="e.g. Heineken" style={S.input} />
+                            <label style={labelStyle}>Product Name *</label>
+                            <input type="text" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+                                placeholder="e.g. Heineken, Jack Daniels" style={inputStyle} />
                         </div>
+
                         {/* Category */}
                         <div style={{ marginBottom: '16px' }}>
-                            <label style={S.label}>Category *</label>
-                            <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })} style={S.input}>
-                                <option value="">-- Select Category --</option>
+                            <label style={labelStyle}>Category *</label>
+                            <select value={form.categoryId} onChange={(e) => setForm({ ...form, categoryId: e.target.value })} style={inputStyle}>
+                                <option value="">— Select Category —</option>
                                 {categories.map(cat => <option key={cat._id} value={cat._id}>{cat.name}</option>)}
                             </select>
                         </div>
+
                         {/* Image */}
                         <div style={{ marginBottom: '16px' }}>
-                            <label style={S.label}>Product Image <span style={{ fontWeight: 'normal', color: '#95a5a6' }}>(JPG, PNG — max 2MB)</span></label>
-                            {imagePreview && <div style={{ marginBottom: '10px' }}><img src={imagePreview} alt="Preview" style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #e0e0e0' }} /></div>}
-                            <input type="file" ref={fileRef} accept="image/*" onChange={handleImageChange} style={{ width: '100%', padding: '10px', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '14px', boxSizing: 'border-box' }} />
-                        </div>
-                        {/* Active */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-                            <input type="checkbox" id="isActive" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-                            <label htmlFor="isActive" style={{ fontSize: '14px', color: '#555', cursor: 'pointer' }}>Active (Show on POS)</label>
+                            <label style={labelStyle}>Product Image <span style={{ fontWeight: '400', color: '#94a3b8' }}>(JPG, PNG — max 2MB)</span></label>
+                            {imagePreview && (
+                                <div style={{ marginBottom: '10px' }}>
+                                    <img src={imagePreview} alt="Preview"
+                                        style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '10px', border: '1px solid #e2e8f0' }} />
+                                </div>
+                            )}
+                            <input type="file" ref={fileRef} accept="image/*" onChange={handleImageChange}
+                                style={{ width: '100%', padding: '9px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', boxSizing: 'border-box', background: '#f8fafc' }} />
                         </div>
 
-                        {/* ===== STOCK SECTION ===== */}
-                        <div style={{ background: '#f8faff', border: '2px solid #e8f0fe', borderRadius: '8px', padding: '16px', marginBottom: '24px' }}>
+                        {/* Active toggle */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px', padding: '12px 14px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                            <input type="checkbox" id="isActive" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+                                style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#6366f1' }} />
+                            <label htmlFor="isActive" style={{ fontSize: '14px', color: '#475569', cursor: 'pointer', fontWeight: '500' }}>
+                                Active — show on POS screen
+                            </label>
+                        </div>
+
+                        {/* Stock Section */}
+                        <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '10px', padding: '16px', marginBottom: '20px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: form.stockEnabled ? '14px' : '0' }}>
                                 <input type="checkbox" id="stockEnabled" checked={form.stockEnabled}
                                     onChange={(e) => setForm({ ...form, stockEnabled: e.target.checked, stockQuantity: e.target.checked ? form.stockQuantity : '' })}
-                                    style={{ width: '16px', height: '16px', cursor: 'pointer' }} />
-                                <label htmlFor="stockEnabled" style={{ fontSize: '14px', fontWeight: '600', color: '#2c3e50', cursor: 'pointer' }}>
-                                    📦 Enable Stock Tracking
+                                    style={{ width: '16px', height: '16px', cursor: 'pointer', accentColor: '#0ea5e9' }} />
+                                <label htmlFor="stockEnabled" style={{ fontSize: '14px', fontWeight: '600', color: '#0369a1', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <FiPackage size={15} /> Enable Stock Tracking
                                 </label>
                             </div>
                             {form.stockEnabled && (
                                 <div>
-                                    <label style={{ ...S.label, marginBottom: '6px' }}>
+                                    <label style={{ ...labelStyle, color: '#0369a1' }}>
                                         {editItem ? 'Current Stock Quantity' : 'Opening Stock Quantity'}
                                     </label>
                                     <input type="number" value={form.stockQuantity} onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })}
-                                        placeholder="e.g. 50" min="0" style={{ ...S.input, width: '160px' }} />
-                                    <div style={{ fontSize: '12px', color: '#888', marginTop: '6px' }}>
-                                        Stock will decrease automatically when orders are placed
-                                    </div>
+                                        placeholder="e.g. 50" min="0"
+                                        style={{ ...inputStyle, width: '140px', background: 'white' }} />
+                                    <p style={{ fontSize: '12px', color: '#64748b', margin: '6px 0 0' }}>
+                                        Decreases automatically when orders are placed
+                                    </p>
                                 </div>
                             )}
                         </div>
 
                         {/* Options */}
-                        <div style={{ borderTop: '2px solid #f0f0f0', paddingTop: '20px', marginBottom: '24px' }}>
+                        <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '20px', marginBottom: '24px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                                <label style={{ fontWeight: 'bold', color: '#2c3e50', fontSize: '15px' }}>Serving Options *</label>
-                                <button onClick={addOption} style={{ background: '#f39c12', color: 'white', padding: '6px 14px', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>+ Add Option</button>
+                                <label style={{ fontWeight: '700', color: '#0f172a', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <FiLayers size={14} /> Serving Options *
+                                </label>
+                                <button onClick={addOption}
+                                    style={{ display: 'flex', alignItems: 'center', gap: '5px', background: '#f1f5f9', color: '#475569', padding: '6px 12px', border: '1px solid #e2e8f0', borderRadius: '7px', cursor: 'pointer', fontSize: '12px', fontWeight: '600' }}>
+                                    <FiPlus size={12} /> Add Option
+                                </button>
                             </div>
-                            <div style={{ background: '#f9f9f9', padding: '8px 12px', borderRadius: '4px', marginBottom: '12px', fontSize: '13px', color: '#666' }}>
-                                Options: Bottle, Glass, Small Glass, Medium Glass, Jar
-                            </div>
+                            <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px', background: '#f8fafc', padding: '8px 12px', borderRadius: '6px' }}>
+                                e.g. Bottle, Glass, Small Glass, Medium Glass, Jar
+                            </p>
                             {form.options.map((opt, index) => (
-                                <div key={index} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '10px' }}>
-                                    <input type="text" value={opt.name} onChange={(e) => updateOption(index, 'name', e.target.value)} placeholder="e.g. Bottle"
-                                        style={{ flex: 1, padding: '9px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px' }} />
-                                    <input type="number" value={opt.price} onChange={(e) => updateOption(index, 'price', e.target.value)} placeholder="Price ($)" step="0.01" min="0"
-                                        style={{ flex: 1, padding: '9px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px' }} />
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', whiteSpace: 'nowrap' }}>
-                                        <input type="checkbox" checked={opt.isActive} onChange={(e) => updateOption(index, 'isActive', e.target.checked)} /> Active
+                                <div key={index} style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                                    <input type="text" value={opt.name} onChange={(e) => updateOption(index, 'name', e.target.value)}
+                                        placeholder="e.g. Bottle"
+                                        style={{ flex: 2, padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', outline: 'none', background: '#f8fafc' }} />
+                                    <input type="number" value={opt.price} onChange={(e) => updateOption(index, 'price', e.target.value)}
+                                        placeholder="Price" step="0.01" min="0"
+                                        style={{ flex: 1, padding: '9px 12px', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '13px', outline: 'none', background: '#f8fafc' }} />
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '12px', color: '#64748b', whiteSpace: 'nowrap', cursor: 'pointer' }}>
+                                        <input type="checkbox" checked={opt.isActive} onChange={(e) => updateOption(index, 'isActive', e.target.checked)}
+                                            style={{ accentColor: '#6366f1' }} /> On
                                     </label>
                                     {form.options.length > 1 && (
-                                        <button onClick={() => removeOption(index)} style={{ background: '#e74c3c', color: 'white', border: 'none', borderRadius: '4px', padding: '6px 10px', cursor: 'pointer' }}>✕</button>
+                                        <button onClick={() => removeOption(index)}
+                                            style={{ padding: '7px', background: '#fef2f2', color: '#dc2626', border: 'none', borderRadius: '7px', cursor: 'pointer', display: 'flex' }}>
+                                            <FiX size={13} />
+                                        </button>
                                     )}
                                 </div>
                             ))}
                         </div>
 
                         {/* Save/Cancel */}
-                        <div style={{ display: 'flex', gap: '12px' }}>
+                        <div style={{ display: 'flex', gap: '10px' }}>
                             <button onClick={handleSave} disabled={saving}
-                                style={{ flex: 1, padding: '11px', background: saving ? '#95a5a6' : '#1a6b3c', color: 'white', border: 'none', borderRadius: '6px', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '15px', fontWeight: 'bold' }}>
-                                {saving ? 'Saving...' : (editItem ? 'Update' : 'Save')}
+                                style={{ flex: 1, padding: '12px', background: saving ? '#94a3b8' : '#0f172a', color: 'white', border: 'none', borderRadius: '9px', cursor: saving ? 'not-allowed' : 'pointer', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                {saving ? 'Saving...' : (editItem ? <><FiCheck size={15} /> Update Product</> : <><FiPlus size={15} /> Save Product</>)}
                             </button>
                             <button onClick={() => setShowModal(false)}
-                                style={{ flex: 1, padding: '11px', background: '#f0f0f0', color: '#555', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '15px' }}>
+                                style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '9px', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}>
                                 Cancel
                             </button>
                         </div>
@@ -311,29 +433,44 @@ export default function ProductsPage() {
 
             {/* ===== STOCK IN MODAL ===== */}
             {showStockModal && stockProduct && (
-                <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-                    <div style={{ background: 'white', borderRadius: '12px', padding: '28px', width: '100%', maxWidth: '380px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
-                        <h2 style={{ fontSize: '18px', fontWeight: 'bold', color: '#2c3e50', margin: '0 0 6px 0' }}>📦 Stock In</h2>
-                        <div style={{ fontSize: '13px', color: '#888', marginBottom: '20px' }}>
-                            {stockProduct.name} — Current: <strong style={{ color: '#2c3e50' }}>{stockProduct.stockQuantity || 0}</strong>
+                <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}
+                    onClick={() => setShowStockModal(false)}>
+                    <div style={{ background: 'white', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '380px', boxShadow: '0 25px 50px rgba(0,0,0,0.25)' }}
+                        onClick={e => e.stopPropagation()}>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                            <div>
+                                <p style={{ fontSize: '11px', fontWeight: '700', color: '#94a3b8', letterSpacing: '1.5px', textTransform: 'uppercase', margin: '0 0 4px' }}>Stock Management</p>
+                                <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', margin: 0 }}>{stockProduct.name}</h2>
+                                <p style={{ fontSize: '13px', color: '#64748b', margin: '4px 0 0' }}>
+                                    Current stock: <span style={{ fontWeight: '700', color: '#0f172a' }}>{stockProduct.stockQuantity || 0}</span> units
+                                </p>
+                            </div>
+                            <button onClick={() => setShowStockModal(false)}
+                                style={{ background: '#f1f5f9', border: 'none', borderRadius: '8px', padding: '8px', cursor: 'pointer', color: '#64748b', display: 'flex' }}>
+                                <FiX size={16} />
+                            </button>
                         </div>
-                        <label style={{ display: 'block', fontWeight: 'bold', color: '#555', marginBottom: '8px', fontSize: '14px' }}>Quantity to Add</label>
+
+                        <label style={{ ...labelStyle, marginBottom: '8px' }}>Quantity to Add</label>
                         <input type="number" value={stockQty} onChange={(e) => setStockQty(e.target.value)}
                             placeholder="e.g. 24" min="1" autoFocus
                             onKeyDown={(e) => e.key === 'Enter' && handleStockIn()}
-                            style={{ width: '100%', padding: '12px 14px', border: '2px solid #e0e0e0', borderRadius: '6px', fontSize: '16px', fontWeight: '700', outline: 'none', boxSizing: 'border-box', marginBottom: '8px' }} />
+                            style={{ width: '100%', padding: '14px 16px', border: '2px solid #e2e8f0', borderRadius: '10px', fontSize: '20px', fontWeight: '700', outline: 'none', boxSizing: 'border-box', color: '#0f172a', textAlign: 'center', marginBottom: '8px' }} />
+
                         {stockQty > 0 && (
-                            <div style={{ fontSize: '13px', color: '#1a6b3c', fontWeight: '600', marginBottom: '16px' }}>
-                                New total: {(stockProduct.stockQuantity || 0) + parseInt(stockQty || 0)}
+                            <div style={{ textAlign: 'center', fontSize: '13px', color: '#059669', fontWeight: '600', marginBottom: '16px', padding: '8px', background: '#ecfdf5', borderRadius: '8px' }}>
+                                New total will be: <strong>{(stockProduct.stockQuantity || 0) + parseInt(stockQty || 0)} units</strong>
                             </div>
                         )}
+
                         <div style={{ display: 'flex', gap: '10px' }}>
                             <button onClick={handleStockIn} disabled={!stockQty || parseInt(stockQty) <= 0 || stockSaving}
-                                style={{ flex: 1, padding: '11px', background: !stockQty || parseInt(stockQty) <= 0 || stockSaving ? '#95a5a6' : '#1a6b3c', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px', fontWeight: 'bold' }}>
-                                {stockSaving ? 'Saving...' : 'Add Stock'}
+                                style={{ flex: 1, padding: '12px', background: !stockQty || parseInt(stockQty) <= 0 || stockSaving ? '#94a3b8' : '#0f172a', color: 'white', border: 'none', borderRadius: '9px', cursor: 'pointer', fontSize: '14px', fontWeight: '600', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                                <FiPackage size={15} /> {stockSaving ? 'Saving...' : 'Add Stock'}
                             </button>
                             <button onClick={() => { setShowStockModal(false); setStockProduct(null); }}
-                                style={{ flex: 1, padding: '11px', background: '#f0f0f0', color: '#555', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '14px' }}>
+                                style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '9px', cursor: 'pointer', fontSize: '14px' }}>
                                 Cancel
                             </button>
                         </div>

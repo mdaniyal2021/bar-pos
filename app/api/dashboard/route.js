@@ -1,6 +1,5 @@
 import connectDB from '@/lib/mongodb';
 import mongoose from 'mongoose';
-import { getServerSession } from 'next-auth';
 
 export async function GET() {
     try {
@@ -14,19 +13,19 @@ export async function GET() {
         const products = db.collection('products');
         const categories = db.collection('categories');
 
-        // Today stats
+        // Today stats — status 'active' (void nahi)
         const todayOrdersList = await orders.find({
-            status: 'completed',
+            status: 'active',
             createdAt: { $gte: today }
         }).toArray();
 
         const todayOrders = todayOrdersList.length;
-        const todayRevenue = todayOrdersList.reduce((sum, o) => sum + o.totalAmount, 0);
+        const todayRevenue = todayOrdersList.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
-        // Total stats
-        const allOrders = await orders.find({ status: 'completed' }).toArray();
+        // Total stats — sirf active orders (void nahi)
+        const allOrders = await orders.find({ status: 'active' }).toArray();
         const totalOrders = allOrders.length;
-        const totalRevenue = allOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+        const totalRevenue = allOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
         // Products & Categories
         const totalProducts = await products.countDocuments({ isActive: true });
