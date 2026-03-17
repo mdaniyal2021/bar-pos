@@ -5,6 +5,17 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useEffect } from 'react';
 import Link from 'next/link';
 
+// ✅ Import modern icons
+import {
+    FiHome,
+    FiGrid,
+    FiBox,
+    FiFileText,
+    FiUsers,
+    FiMonitor,
+    FiLogOut
+} from 'react-icons/fi';
+
 export default function AdminLayout({ children }) {
     const { data: session, status } = useSession();
     const router = useRouter();
@@ -35,12 +46,13 @@ export default function AdminLayout({ children }) {
 
     if (!session) return null;
 
+    // ✅ Updated nav with icons
     const navLinks = [
-        { href: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
-        { href: '/admin/categories', label: 'Categories', icon: '📂' },
-        { href: '/admin/products', label: 'Products', icon: '🍾' },
-        { href: '/admin/orders', label: 'Order History', icon: '🧾' },
-        { href: '/admin/users', label: 'Users', icon: '👥' },
+        { href: '/admin/dashboard', label: 'Dashboard', icon: <FiHome /> },
+        { href: '/admin/categories', label: 'Categories', icon: <FiGrid /> },
+        { href: '/admin/products', label: 'Products', icon: <FiBox /> },
+        { href: '/admin/orders', label: 'Order History', icon: <FiFileText /> },
+        { href: '/admin/users', label: 'Users', icon: <FiUsers /> },
     ];
 
     return (
@@ -49,7 +61,7 @@ export default function AdminLayout({ children }) {
             {/* Sidebar */}
             <div style={{
                 width: '240px',
-                background: '#2c3e50',
+                background: '#1e293b',
                 color: 'white',
                 display: 'flex',
                 flexDirection: 'column',
@@ -58,94 +70,70 @@ export default function AdminLayout({ children }) {
                 top: 0, left: 0,
                 zIndex: 100,
             }}>
+
                 {/* Logo */}
                 <div style={{
-                    padding: '16px 20px',
-                    background: '#1a252f',
-                    borderBottom: '1px solid #3d5166',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minHeight: '80px',
+                    padding: '16px',
+                    borderBottom: '1px solid #334155',
+                    textAlign: 'center'
                 }}>
                     <img
                         src="/images/logo2.png"
-                        alt="Bar POS Logo"
-                        style={{
-                            maxWidth: '160px',
-                            maxHeight: '60px',
-                            objectFit: 'contain',
-                        }}
-                        onError={(e) => {
-                            // Fallback to text if logo not found
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'block';
-                        }}
+                        alt="Logo"
+                        style={{ maxWidth: '140px' }}
                     />
-                    {/* Fallback text — hidden by default */}
-                    <div style={{
-                        display: 'none',
-                        fontSize: '18px',
-                        fontWeight: 'bold',
-                    }}>
-                        <span style={{ color: '#f39c12' }}>BAR</span> POS
-                    </div>
                 </div>
 
-                {/* User Info */}
+                {/* User */}
                 <div style={{
-                    padding: '16px 20px',
-                    borderBottom: '1px solid #3d5166',
+                    padding: '16px',
+                    borderBottom: '1px solid #334155',
                 }}>
-                    <div style={{ color: 'white', fontWeight: 'bold', fontSize: '14px' }}>
-                        {session.user.name}
-                    </div>
-                    <div style={{ color: '#bdc3c7', fontSize: '12px', marginTop: '2px' }}>
-                        Super Admin
-                    </div>
+                    <div style={{ fontWeight: '600' }}>{session.user.name}</div>
+                    <div style={{ fontSize: '12px', color: '#94a3b8' }}>Super Admin</div>
                 </div>
 
-                {/* Nav Links */}
-                <nav style={{ flex: 1, padding: '16px 0' }}>
+                {/* Nav */}
+                <nav style={{ flex: 1, padding: '10px 0' }}>
+
                     <div style={{
-                        fontSize: '10px',
-                        textTransform: 'uppercase',
-                        color: '#7f8c8d',
-                        padding: '8px 20px',
-                        letterSpacing: '1px',
+                        fontSize: '11px',
+                        color: '#64748b',
+                        padding: '10px 20px'
                     }}>
-                        Main
+                        MAIN
                     </div>
 
-                    {navLinks.map((link) => (
-                        <Link
-                            key={link.href}
-                            href={link.href}
-                            style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '10px',
-                                padding: '11px 20px',
-                                color: pathname === link.href ? 'white' : '#bdc3c7',
-                                textDecoration: 'none',
-                                fontSize: '14px',
-                                background: pathname === link.href ? '#3d5166' : 'transparent',
-                                borderLeft: pathname === link.href ? '3px solid #f39c12' : '3px solid transparent',
-                                transition: 'all 0.2s',
-                            }}
-                        >
-                            <span>{link.icon}</span>
-                            {link.label}
-                        </Link>
-                    ))}
+                    {navLinks.map((link) => {
+                        const isActive = pathname === link.href;
 
-                    {/* Divider */}
+                        return (
+                            <Link
+                                key={link.href}
+                                href={link.href}
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    padding: '12px 20px',
+                                    color: isActive ? '#fff' : '#94a3b8',
+                                    background: isActive ? '#334155' : 'transparent',
+                                    borderLeft: isActive ? '3px solid #f59e0b' : '3px solid transparent',
+                                    textDecoration: 'none',
+                                    transition: '0.2s',
+                                }}
+                            >
+                                <span style={{ fontSize: '18px' }}>{link.icon}</span>
+                                {link.label}
+                            </Link>
+                        );
+                    })}
+
+                    {/* POS */}
                     <div style={{
-                        fontSize: '10px',
-                        textTransform: 'uppercase',
-                        color: '#7f8c8d',
-                        padding: '16px 20px 8px',
-                        letterSpacing: '1px',
+                        fontSize: '11px',
+                        color: '#64748b',
+                        padding: '15px 20px 8px'
                     }}>
                         POS
                     </div>
@@ -153,38 +141,42 @@ export default function AdminLayout({ children }) {
                     <Link href="/pos" style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '10px',
-                        padding: '11px 20px',
-                        color: '#bdc3c7',
+                        gap: '12px',
+                        padding: '12px 20px',
+                        color: '#94a3b8',
                         textDecoration: 'none',
-                        fontSize: '14px',
                     }}>
-                        <span>🖥️</span> Go to POS
+                        <FiMonitor />
+                        Go to POS
                     </Link>
                 </nav>
 
                 {/* Logout */}
-                <div style={{ padding: '16px 20px', borderTop: '1px solid #3d5166' }}>
+                <div style={{ padding: '16px', borderTop: '1px solid #334155' }}>
                     <button
                         onClick={() => signOut({ callbackUrl: '/login' })}
                         style={{
                             width: '100%',
                             padding: '10px',
-                            background: '#e74c3c',
-                            color: 'white',
+                            background: '#ef4444',
                             border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '14px',
+                            color: 'white',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            cursor: 'pointer'
                         }}
                     >
-                        🚪 Logout
+                        <FiLogOut />
+                        Logout
                     </button>
                 </div>
             </div>
 
-            {/* Main Content */}
-            <div style={{ marginLeft: '240px', flex: 1, background: '#f4f6f8' }}>
+            {/* Content */}
+            <div style={{ marginLeft: '240px', flex: 1, background: '#f1f5f9' }}>
                 {children}
             </div>
         </div>
